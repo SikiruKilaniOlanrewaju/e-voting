@@ -19,6 +19,7 @@ const AdminDashboard = () => {
   const [studentMatric, setStudentMatric] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
+  const [studentPhone, setStudentPhone] = useState('');
   const [studentMsg, setStudentMsg] = useState('');
   const [students, setStudents] = useState([]);
   // Fetch all students for export
@@ -37,10 +38,10 @@ const AdminDashboard = () => {
 
   // Download sample CSV for student import
   const downloadStudentSample = (data = []) => {
-    const header = ['Matric Number', 'Full Name', 'Email'];
+    const header = ['Matric Number', 'Full Name', 'Email', 'Phone'];
     const sampleRows = data.length
-      ? data.map(s => [s.matric_no, s.full_name, s.email])
-      : [['MAT123456', 'John Doe', 'john.doe@email.com']];
+      ? data.map(s => [s.matric_no, s.full_name, s.email, s.phone])
+      : [['MAT123456', 'John Doe', 'john.doe@email.com', '+2348012345678']];
     const csvContent = [header, ...sampleRows]
       .map(e => e.map(v => '"' + (v || '') + '"').join(','))
       .join('\n');
@@ -79,17 +80,19 @@ const AdminDashboard = () => {
       return result.map(s => s.trim());
     };
     const studentsToAdd = rows.map(row => {
-      const [matric_no, full_name, email] = parseCSVRow(row);
-      return { matric_no, full_name, email };
+      const [matric_no, full_name, email, phone] = parseCSVRow(row);
+      return { matric_no, full_name, email, phone };
     });
+    // Validate E.164 phone format
+    const isValidPhone = phone => /^\+\d{10,15}$/.test(phone);
     // Filter out incomplete rows and duplicates
-    const validStudents = studentsToAdd.filter(s => s.matric_no && s.full_name && s.email);
-    if (!validStudents.length) return alert('No valid students found in CSV.');
+    const validStudents = studentsToAdd.filter(s => s.matric_no && s.full_name && s.email && s.phone && isValidPhone(s.phone));
+    if (!validStudents.length) return alert('No valid students found in CSV. Ensure phone numbers are in E.164 format.');
     // Remove duplicates by matric_no
     const uniqueStudents = Array.from(new Map(validStudents.map(s => [s.matric_no, s])).values());
     const { error } = await supabase.from('students').insert(uniqueStudents);
     if (error) {
-      alert('Error importing students.');
+      alert('Error importing students: ' + (error.message || JSON.stringify(error)));
     } else {
       setStudentMsg('Students imported!');
     }
@@ -125,20 +128,23 @@ const AdminDashboard = () => {
   }, [posMessage]);
 
   // Student registration
+  const isValidPhone = phone => /^\+\d{10,15}$/.test(phone);
   const handleRegisterStudent = async (e) => {
     e.preventDefault();
     setStudentMsg('');
-    if (!studentMatric || !studentName || !studentEmail) return setStudentMsg('All fields required.');
+    if (!studentMatric || !studentName || !studentEmail || !studentPhone) return setStudentMsg('All fields required.');
+    if (!isValidPhone(studentPhone)) return setStudentMsg('Phone must be in E.164 format (e.g. +2348012345678).');
     const { error } = await supabase.from('students').insert([
-      { matric_no: studentMatric, full_name: studentName, email: studentEmail }
+      { matric_no: studentMatric, full_name: studentName, email: studentEmail, phone: studentPhone }
     ]);
     if (error) {
-      setStudentMsg('Error registering student.');
+      setStudentMsg('Error registering student: ' + (error.message || JSON.stringify(error)));
     } else {
       setStudentMsg('Student registered!');
       setStudentMatric('');
       setStudentName('');
       setStudentEmail('');
+      setStudentPhone('');
     }
   };
 
@@ -258,6 +264,14 @@ const AdminDashboard = () => {
             placeholder="Email"
             value={studentEmail}
             onChange={(e) => setStudentEmail(e.target.value)}
+            required
+            autoComplete="off"
+          />
+          <input
+            type="tel"
+            placeholder="Phone (E.164 format, e.g. +2348012345678)"
+            value={studentPhone}
+            onChange={(e) => setStudentPhone(e.target.value)}
             required
             autoComplete="off"
           />

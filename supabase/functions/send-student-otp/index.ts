@@ -121,40 +121,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Send OTP email using Resend
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Send OTP email using custom Node.js backend
     let emailSent = false;
     let emailError = null;
-    if (resendApiKey) {
-      const emailRes = await fetch("https://api.resend.com/emails", {
+    try {
+      const smtpBackendUrl = Deno.env.get("SMTP_BACKEND_URL") || "http://localhost:3001/send-otp";
+      const emailRes = await fetch(smtpBackendUrl, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "hesoltekconceptmedia@gmail.com",
-          to: email,
-          subject: "Your OTP Code",
-          html: `<p>Your OTP code is: <b>${otp}</b></p>`
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: email, otp })
       });
       if (emailRes.ok) {
         emailSent = true;
-        console.log(`OTP email sent to ${email}`);
+        console.log(`OTP email sent to ${email} via backend`);
       } else {
         emailError = await emailRes.text();
-        console.error("Failed to send OTP email:", emailError);
+        console.error("Failed to send OTP email via backend:", emailError);
       }
-    } else {
-      emailError = "RESEND_API_KEY not set in environment variables.";
-      console.error(emailError);
+    } catch (smtpErr) {
+      emailError = smtpErr.message || smtpErr.toString();
+      console.error("Failed to send OTP email via backend:", emailError);
     }
 
     return new Response(JSON.stringify({
       success: true,
       emailSent: !!emailSent,
-      emailError: emailError ?? null
+      emailError: emailError ?? null,
+      smtpDebug: {
+        smtpHost,
+        smtpPort,
+        smtpUser,
+        smtpFrom,
+        email,
+        envSet: {
+          smtpHost: !!smtpHost,
+          smtpPort: !!smtpPort,
+          smtpUser: !!smtpUser,
+          smtpPass: !!smtpPass,
+          smtpFrom: !!smtpFrom,
+        }
+      }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

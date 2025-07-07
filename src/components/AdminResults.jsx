@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Select, MenuItem, FormControl, InputLabel, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button, TextField } from '@mui/material';
+import { Box, Typography, Select, MenuItem, FormControl, InputLabel, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button, TextField, Grid, Card, CardContent, Chip, Collapse, Modal, IconButton, Tooltip as MuiTooltip, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import HistoryIcon from '@mui/icons-material/History';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import InfoIcon from '@mui/icons-material/Info';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function AdminResults() {
   const [events, setEvents] = useState([]);
@@ -11,6 +18,12 @@ export default function AdminResults() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filteredResults, setFilteredResults] = useState([]);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
+  const [locked, setLocked] = useState(false);
+  const [summary, setSummary] = useState({ totalVotes: 0, turnout: 0, abstentions: 0 });
+  const [chartType, setChartType] = useState('bar');
+  const [voterModal, setVoterModal] = useState({ open: false, candidate: null, voters: [] });
 
   useEffect(() => {
     // Fetch all voting events
@@ -48,6 +61,33 @@ export default function AdminResults() {
     );
   }, [results, search]);
 
+  // Real-time polling
+  useEffect(() => {
+    if (!selectedEvent) return;
+    setLoading(true);
+    const fetchResults = () => {
+      supabase.rpc('get_voting_results', { event_id: selectedEvent }).then(({ data, error }) => {
+        setResults(data || []);
+        setLoading(false);
+      });
+      supabase.from('voting_audit').select('*').eq('event_id', selectedEvent).order('timestamp', { ascending: false }).then(({ data }) => setAuditLog(data || []));
+      supabase.rpc('get_voting_summary', { event_id: selectedEvent }).then(({ data }) => setSummary(data || { totalVotes: 0, turnout: 0, abstentions: 0 }));
+      supabase.from('voting_events').select('locked').eq('id', selectedEvent).single().then(({ data }) => setLocked(data?.locked || false));
+    };
+    fetchResults();
+    const interval = setInterval(fetchResults, 5000);
+    return () => clearInterval(interval);
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    setFilteredResults(
+      results.filter(r =>
+        r.position_name.toLowerCase().includes(search.toLowerCase()) ||
+        r.candidate_name.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }, [results, search]);
+
   // CSV Export
   const handleExportCSV = () => {
     const header = 'Position,Candidate,Votes\n';
@@ -62,6 +102,30 @@ export default function AdminResults() {
     URL.revokeObjectURL(url);
   };
 
+  // PDF Export
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Voting Results', 14, 16);
+    doc.autoTable({
+      head: [['Position', 'Candidate', 'Votes']],
+      body: filteredResults.map(r => [r.position_name, r.candidate_name, r.vote_count]),
+      startY: 22
+    });
+    doc.save('voting_results.pdf');
+  };
+
+  // Lock results
+  const handleLockResults = async () => {
+    await supabase.from('voting_events').update({ locked: !locked }).eq('id', selectedEvent);
+    setLocked(!locked);
+  };
+
+  // Drilldown: show voters for candidate
+  const handleShowVoters = async (candidate) => {
+    const { data } = await supabase.from('votes').select('student:student_id(full_name,matric_no)').eq('candidate_id', candidate.candidate_id).eq('event_id', selectedEvent);
+    setVoterModal({ open: true, candidate, voters: data?.map(v => v.student) || [] });
+  };
+
   // Group by position for charts
   const grouped = filteredResults.reduce((acc, row) => {
     acc[row.position_name] = acc[row.position_name] || [];
@@ -72,8 +136,38 @@ export default function AdminResults() {
   const COLORS = ['#1976d2', '#388e3c', '#fbc02d', '#d32f2f', '#7b1fa2', '#0288d1', '#c2185b'];
 
   return (
-    <Box>
-      <Typography variant="h5" fontWeight={700} mb={2}>Voting Results</Typography>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', p: { xs: 1, sm: 3 } }}>
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={12} md={8}>
+          <Typography variant="h5" fontWeight={700}>Voting Results {locked && <Chip label="Certified" color="success" size="small" icon={<LockIcon />} sx={{ ml: 1 }} />}</Typography>
+        </Grid>
+        <Grid item xs={12} md={4} textAlign={{ xs: 'left', md: 'right' }}>
+          <Button variant="contained" color={locked ? 'warning' : 'success'} startIcon={locked ? <LockOpenIcon /> : <LockIcon />} onClick={handleLockResults} sx={{ mr: 1 }}>{locked ? 'Unlock Results' : 'Lock Results'}</Button>
+          <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportCSV} sx={{ mr: 1 }}>Export CSV</Button>
+          <Button variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={handleExportPDF}>Export PDF</Button>
+        </Grid>
+      </Grid>
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={12} md={3}><Card><CardContent><Typography variant="subtitle2">Total Votes</Typography><Typography variant="h6">{summary.totalVotes}</Typography></CardContent></Card></Grid>
+        <Grid item xs={12} md={3}><Card><CardContent><Typography variant="subtitle2">Turnout</Typography><Typography variant="h6">{summary.turnout}%</Typography></CardContent></Card></Grid>
+        <Grid item xs={12} md={3}><Card><CardContent><Typography variant="subtitle2">Abstentions</Typography><Typography variant="h6">{summary.abstentions}</Typography></CardContent></Card></Grid>
+        <Grid item xs={12} md={3}><Card><CardContent><Typography variant="subtitle2">Positions</Typography><Typography variant="h6">{Object.keys(grouped).length}</Typography></CardContent></Card></Grid>
+      </Grid>
+      <Box mb={2}>
+        <ToggleButtonGroup value={chartType} exclusive onChange={(_, v) => v && setChartType(v)} size="small">
+          <ToggleButton value="bar">Bar</ToggleButton>
+          <ToggleButton value="pie">Pie</ToggleButton>
+        </ToggleButtonGroup>
+        <MuiTooltip title="Show Audit Log"><IconButton onClick={() => setAuditOpen(v => !v)}><HistoryIcon /></IconButton></MuiTooltip>
+      </Box>
+      <Collapse in={auditOpen} sx={{ mb: 2 }}>
+        <Card variant="outlined"><CardContent>
+          <Typography variant="subtitle1" mb={1}>Audit Log</Typography>
+          {auditLog.length === 0 ? <Typography>No audit records.</Typography> : (
+            <Table size="small"><TableHead><TableRow><TableCell>Time</TableCell><TableCell>Action</TableCell><TableCell>User</TableCell></TableRow></TableHead><TableBody>{auditLog.map((log, i) => <TableRow key={i}><TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell><TableCell>{log.action}</TableCell><TableCell>{log.user}</TableCell></TableRow>)}</TableBody></Table>
+          )}
+        </CardContent></Card>
+      </Collapse>
       <FormControl sx={{ minWidth: 240, mb: 3, mr: 2 }}>
         <InputLabel id="event-select-label">Voting Event</InputLabel>
         <Select
@@ -93,9 +187,6 @@ export default function AdminResults() {
         onChange={e => setSearch(e.target.value)}
         sx={{ mb: 3, minWidth: 260, mr: 2 }}
       />
-      <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportCSV} sx={{ mb: 3 }}>
-        Export CSV
-      </Button>
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
           <CircularProgress />
@@ -173,6 +264,14 @@ export default function AdminResults() {
           ))}
         </>
       )}
+      <Modal open={voterModal.open} onClose={() => setVoterModal({ open: false, candidate: null, voters: [] })}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: 'background.paper', p: 4, borderRadius: 2, minWidth: 320 }}>
+          <Typography variant="h6" mb={2}>Voters for {voterModal.candidate?.candidate_name}</Typography>
+          {voterModal.voters.length === 0 ? <Typography>No voters found.</Typography> : (
+            <Table size="small"><TableHead><TableRow><TableCell>Full Name</TableCell><TableCell>Matric No</TableCell></TableRow></TableHead><TableBody>{voterModal.voters.map((v, i) => <TableRow key={i}><TableCell>{v.full_name}</TableCell><TableCell>{v.matric_no}</TableCell></TableRow>)}</TableBody></Table>
+          )}
+        </Box>
+      </Modal>
     </Box>
   );
 }

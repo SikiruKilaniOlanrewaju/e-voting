@@ -98,7 +98,7 @@ export default function AdminEvents() {
   // No client-side filtering/pagination; use server data
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 900, mx: 'auto', width: '100%', p: { xs: 1, sm: 3 } }}>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
         <Typography variant="h5">Voting Events</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>Add Event</Button>

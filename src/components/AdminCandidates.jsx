@@ -142,7 +142,7 @@ export default function AdminCandidates() {
   // No client-side filtering/pagination; use server data
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', p: { xs: 1, sm: 3 } }}>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
         <Typography variant="h5">Candidates</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>Add Candidate</Button>

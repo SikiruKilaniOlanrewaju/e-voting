@@ -51,6 +51,70 @@ function AdminStudents() {
     }
     setLoading(false);
   };
+  // Dialog handlers
+  const handleOpenDialog = (student = { id: null, matric_no: '', full_name: '', email: '', phone: '' }) => {
+    setCurrentStudent(student);
+    setEditMode(!!student.id);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setCurrentStudent({ id: null, matric_no: '', full_name: '', email: '', phone: '' });
+    setEditMode(false);
+  };
+
+  // Save handler
+  const handleSave = async () => {
+    if (!currentStudent.matric_no.trim() || !currentStudent.full_name.trim() || !currentStudent.email.trim()) {
+      setSnackbar({ open: true, message: 'Matric number, full name, and email are required.' });
+      return;
+    }
+    setLoading(true);
+    if (editMode) {
+      // Update
+      const { error } = await supabase
+        .from('students')
+        .update({
+          matric_no: currentStudent.matric_no,
+          full_name: currentStudent.full_name,
+          email: currentStudent.email,
+          phone: currentStudent.phone
+        })
+        .eq('id', currentStudent.id);
+      if (!error) setSnackbar({ open: true, message: 'Student updated.' });
+    } else {
+      // Add
+      const { error } = await supabase
+        .from('students')
+        .insert([{ ...currentStudent }]);
+      if (!error) setSnackbar({ open: true, message: 'Student added.' });
+    }
+    handleCloseDialog();
+    fetchStudents();
+    setLoading(false);
+  };
+
+  // Delete handler
+  const handleDelete = async () => {
+    setLoading(true);
+    const { error } = await supabase.from('students').delete().eq('id', deleteId);
+    if (!error) setSnackbar({ open: true, message: 'Student deleted.' });
+    setDeleteId(null);
+    setConfirmDelete(false);
+    fetchStudents();
+    setLoading(false);
+  };
+
+  // CSV handlers (no-op for now)
+  const handleCsvChange = (e) => {
+    setCsvFile(e.target.files[0]);
+  };
+  const handleImportCsv = () => {
+    // Implement CSV import logic here
+    setSnackbar({ open: true, message: 'CSV import not implemented.' });
+  };
+
   return (
     <Box>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>

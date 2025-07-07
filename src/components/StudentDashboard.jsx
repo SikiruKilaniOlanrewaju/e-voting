@@ -54,8 +54,17 @@ const StudentDashboard = () => {
       setPositions(posData || []);
       let candObj = {};
       for (const pos of posData || []) {
-        const { data: cands } = await supabase.from('candidates').select('*').eq('position_id', pos.id);
-        candObj[pos.id] = cands || [];
+        // Select and map actual DB fields to expected UI fields
+        const { data: cands } = await supabase
+          .from('candidates')
+          .select('id,full_name,photo_url,bio')
+          .eq('position_id', pos.id);
+        candObj[pos.id] = (cands || []).map(c => ({
+          ...c,
+          name: c.full_name || 'No Name',
+          bio: c.bio || '',
+          avatar_url: c.photo_url || '',
+        }));
       }
       setCandidates(candObj);
       if (student) {
@@ -127,231 +136,239 @@ const StudentDashboard = () => {
   // Voting progress
   const votedCount = Object.keys(votes).length;
   const totalCount = positions.length;
-
+  // --- Premium UI/UX: Sticky Header, Confetti, Snackbar, Dashboard, Voting UI ---
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      width: '100vw',
-      background: 'linear-gradient(135deg, #e3eafc 60%, #f7fafd 100%)',
-      py: { xs: 2, sm: 4, md: 6 },
-      px: { xs: 0, sm: 2 },
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflowX: 'hidden',
-      position: 'relative',
-    }}>
-      {/* Confetti animation */}
-      {showConfetti && (
-        <Box sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 2000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-        }}>
-          <CelebrationIcon sx={{ fontSize: 120, color: '#42a5f5', opacity: 0.85, animation: 'pop 1.2s cubic-bezier(.4,0,.2,1)' }} />
-          <style>{`
-            @keyframes pop {
-              0% { transform: scale(0.2); opacity: 0; }
-              60% { transform: scale(1.2); opacity: 1; }
-              100% { transform: scale(1); opacity: 0.85; }
-            }
-          `}</style>
-        </Box>
-      )}
-      {/* Profile Card */}
-      <Fade in timeout={700}>
-        <Paper elevation={8} sx={{
-          maxWidth: 480,
-          width: '100%',
-          mx: 'auto',
-          mb: 4,
-          p: { xs: 2, sm: 4 },
-          borderRadius: 8,
-          background: 'rgba(255,255,255,0.98)',
-          boxShadow: '0 8px 32px 0 rgba(33,150,243,0.13), 0 2px 8px 0 rgba(66,165,245,0.08)',
-          border: '2.5px solid',
-          borderImage: 'linear-gradient(120deg, #42a5f5 0%, #e3eafc 100%, #1976d2 100%) 1',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 3,
-          justifyContent: 'center',
-          '::after': {
-            content: '""',
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            boxShadow: 'inset 0 2.5px 18px 0 rgba(33,150,243,0.09)',
-            borderRadius: 'inherit',
-            border: '2px solid transparent',
-            background: 'linear-gradient(120deg, rgba(66,165,245,0.08) 0%, rgba(25,118,210,0.06) 100%)',
-            zIndex: 1,
-            animation: 'borderGlow 3.5s ease-in-out infinite',
-            '@keyframes borderGlow': {
-              '0%,100%': { opacity: 0.7 },
-              '50%': { opacity: 1 },
-            },
-          },
-          animation: 'fadeIn 0.7s cubic-bezier(.4,0,.2,1)',
-          '@keyframes fadeIn': {
-            from: { opacity: 0, transform: 'translateY(24px)' },
-            to: { opacity: 1, transform: 'none' },
-          },
-          backdropFilter: 'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
-          zIndex: 2,
-        }}>
-          <Avatar sx={{ bgcolor: 'linear-gradient(135deg, #1976d2 60%, #42a5f5 100%)', width: 64, height: 64, fontWeight: 700, fontSize: 32, boxShadow: '0 0 0 4px #e3eafc' }}>
-            {student?.full_name ? student.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : <HowToVoteIcon fontSize="large" />}
-          </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" fontWeight={900} color="#1976d2" sx={{ letterSpacing: 1 }}>{student?.full_name || 'Student'}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{student?.email || student?.id || ''}</Typography>
-          </Box>
-          <Tooltip title="Logout">
-            <IconButton onClick={handleLogout} color="error" sx={{ boxShadow: '0 2px 8px 0 #e57373', borderRadius: 2 }}>
-              <LogoutIcon />
-            </IconButton>
+    <React.Fragment>
+      {/* Sticky Premium Header Bar */}
+      <Paper elevation={4} sx={{
+        position: 'sticky',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        zIndex: 1200,
+        borderRadius: 0,
+        background: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(8px)',
+        boxShadow: '0 4px 24px 0 rgba(0,0,0,0.08)',
+        borderBottom: '1.5px solid #e3eafc',
+        display: 'flex',
+        alignItems: 'center',
+        px: { xs: 2, sm: 6 },
+        py: 1.5,
+        mb: 3,
+        transition: 'background 0.3s',
+      }}>
+        <HowToVoteIcon sx={{ fontSize: 32, color: 'primary.main', mr: 2, filter: 'drop-shadow(0 0 6px #90caf9)' }} />
+        <Typography variant="h5" fontWeight={700} color="primary.main" sx={{ flexGrow: 1, letterSpacing: 1 }}>
+          Student Voting Dashboard
+        </Typography>
+        {student && (
+          <Tooltip title={student.email} arrow>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(144,202,249,0.08)', px: 2, py: 1, borderRadius: 3, boxShadow: '0 2px 8px 0 rgba(144,202,249,0.08)' }}>
+              <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontWeight: 700 }}>
+                {student.name ? student.name[0].toUpperCase() : '?'}
+              </Avatar>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary" sx={{ lineHeight: 1 }}>
+                  {student.name || 'Student'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 12 }}>
+                  {student.email}
+                </Typography>
+              </Box>
+            </Box>
           </Tooltip>
-        </Paper>
+        )}
+        <IconButton onClick={handleLogout} color="error" sx={{ ml: 2 }} aria-label="Logout">
+          <LogoutIcon />
+        </IconButton>
+      </Paper>
+
+      {/* Confetti Celebration */}
+      <Fade in={showConfetti} timeout={400} unmountOnExit>
+        <CelebrationIcon sx={{
+          position: 'fixed',
+          top: 24,
+          right: 32,
+          fontSize: 64,
+          color: 'secondary.main',
+          zIndex: 2000,
+          filter: 'drop-shadow(0 0 16px #fbc02d)',
+          animation: 'confetti-pop 1.8s cubic-bezier(.17,.67,.83,.67)'
+        }} />
       </Fade>
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={2200}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        ContentProps={{
-          sx: {
-            background: snackbar.severity === 'success' ? 'linear-gradient(90deg, #42a5f5 60%, #1976d2 100%)' : snackbar.severity === 'error' ? '#e57373' : '#ffb300',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 16,
-            borderRadius: 2,
-            boxShadow: 4,
-          }
-        }}
-        message={snackbar.text}
-      />
-      {/* Dashboard Card */}
-      {/* Voting Progress Bar & Timer */}
-      <Box sx={{ width: '100%', maxWidth: 1100, mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography fontWeight={700} color="#1976d2" sx={{ mb: 0.5 }}>Voting Progress</Typography>
-          <LinearProgress variant="determinate" value={totalCount ? (votedCount / totalCount) * 100 : 0} sx={{ height: 10, borderRadius: 5, background: '#e3eafc', '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #1976d2 60%, #42a5f5 100%)' } }} />
-          <Typography variant="caption" color="text.secondary">{votedCount} of {totalCount} positions voted</Typography>
+
+      {/* Main Dashboard Content */}
+      <Box sx={{
+        minHeight: '90vh',
+        width: '100vw',
+        background: 'linear-gradient(135deg, #e3eafc 60%, #f7fafd 100%)',
+        py: { xs: 2, sm: 4, md: 6 },
+        px: { xs: 0, sm: 2 },
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        overflowX: 'hidden',
+        position: 'relative',
+      }}>
+        {/* Voting Progress Bar */}
+        <Box sx={{ width: '100%', maxWidth: 520, mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Voting Progress: {votedCount} / {totalCount} positions
+          </Typography>
+          <LinearProgress
+            variant="determinate"
+            value={totalCount === 0 ? 0 : (votedCount / totalCount) * 100}
+            sx={{ height: 8, borderRadius: 4, background: '#e3eafc', '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #42a5f5 60%, #90caf9 100%)' } }}
+            aria-label="Voting Progress"
+          />
         </Box>
-        <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-          <Typography fontWeight={700} color="#1976d2">{timer}</Typography>
+
+        {/* Timer and Info */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <InfoOutlinedIcon color="info" />
+          <Typography variant="body1" color="text.secondary">
+            {timer}
+          </Typography>
+        </Box>
+
+        {/* Student Info Card */}
+        <Paper elevation={3} sx={{
+          p: 3,
+          mb: 4,
+          width: '100%',
+          maxWidth: 520,
+          borderRadius: 4,
+          background: 'rgba(255,255,255,0.95)',
+          boxShadow: '0 4px 24px 0 rgba(144,202,249,0.10)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48, fontWeight: 700 }}>
+            {student?.name ? student.name[0].toUpperCase() : '?'}
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight={700} color="primary.main">
+              {student?.name || 'Student'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {student?.email}
+            </Typography>
+          </Box>
+        </Paper>
+
+        {/* Voting UI */}
+        <Box sx={{ width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {positions.length === 0 ? (
+            <Alert severity="info">No positions available for voting at this time.</Alert>
+          ) : (
+            positions.map((pos) => (
+              <Paper key={pos.id} elevation={2} sx={{ p: 3, borderRadius: 4, background: 'rgba(255,255,255,0.98)', boxShadow: '0 2px 12px 0 rgba(144,202,249,0.08)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6" fontWeight={700} color="primary.main" sx={{ flexGrow: 1 }}>
+                    {pos.name}
+                  </Typography>
+                  {votes[pos.id] && (
+                    <Fade in={true}><CelebrationIcon color="secondary" sx={{ ml: 1 }} /></Fade>
+                  )}
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  {(candidates[pos.id] || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">No candidates for this position.</Typography>
+                  ) : (
+                    candidates[pos.id].map((cand) => {
+                      const voted = votes[pos.id] === cand.id;
+                      return (
+                        <Paper
+                          key={cand.id}
+                          elevation={voted ? 6 : 1}
+                          sx={{
+                            p: 2,
+                            minWidth: 180,
+                            borderRadius: 3,
+                            background: voted ? 'linear-gradient(90deg, #42a5f5 60%, #90caf9 100%)' : 'rgba(227,234,252,0.7)',
+                            color: voted ? '#fff' : 'inherit',
+                            boxShadow: voted ? '0 4px 24px 0 rgba(66,165,245,0.18)' : '0 1px 4px 0 rgba(144,202,249,0.06)',
+                            border: voted ? '2px solid #42a5f5' : '1.5px solid #e3eafc',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            position: 'relative',
+                            transition: 'all 0.2s',
+                            cursor: voted ? 'not-allowed' : 'pointer',
+                            outline: voted ? '2px solid #fbc02d' : 'none',
+                            '&:hover': !voted && {
+                              boxShadow: '0 4px 16px 0 rgba(66,165,245,0.12)',
+                              background: 'linear-gradient(90deg, #e3eafc 60%, #f7fafd 100%)',
+                            },
+                          }}
+                          tabIndex={0}
+                          aria-label={`Candidate ${cand.name}`}
+                          onClick={() => !voted && handleVote(pos.id, cand.id)}
+                          onKeyDown={e => {
+                            if (!voted && (e.key === 'Enter' || e.key === ' ')) handleVote(pos.id, cand.id);
+                          }}
+                        >
+                          <Avatar
+                            src={cand.avatar_url || undefined}
+                            sx={{ width: 56, height: 56, mb: 1, bgcolor: voted ? 'secondary.main' : 'primary.light', color: voted ? '#fff' : 'primary.main', fontWeight: 700, fontSize: 28 }}
+                            alt={cand.name || 'Candidate'}
+                          >
+                            {cand.name && cand.name.length > 0 ? cand.name[0].toUpperCase() : '?'}
+                          </Avatar>
+                          <Typography variant="subtitle1" fontWeight={600} sx={{ textAlign: 'center' }}>
+                            {cand.name || <span style={{ color: '#bbb' }}>No Name</span>}
+                          </Typography>
+                          <Typography variant="caption" color={voted ? '#fff' : 'text.secondary'}>
+                            {cand.bio && cand.bio.length > 0 ? cand.bio : <span style={{ color: '#bbb' }}>No bio</span>}
+                          </Typography>
+                          <Button
+                            variant={voted ? 'contained' : 'outlined'}
+                            color={voted ? 'secondary' : 'primary'}
+                            size="small"
+                            disabled={voted}
+                            sx={{ mt: 1, fontWeight: 700, borderRadius: 2, boxShadow: voted ? '0 2px 8px 0 rgba(251,192,45,0.12)' : 'none', letterSpacing: 0.5 }}
+                          >
+                            {voted ? 'Voted' : 'Vote'}
+                          </Button>
+                        </Paper>
+                      );
+                    })
+                  )}
+                </Box>
+              </Paper>
+            ))
+          )}
         </Box>
       </Box>
-      <Fade in timeout={900}>
-        <Paper elevation={10} sx={{
-          maxWidth: 1100,
-          width: '100%',
-          mx: 'auto',
-          p: { xs: 2, sm: 5, md: 6 },
-          borderRadius: 10,
-          background: 'rgba(255,255,255,0.98)',
-          boxShadow: '0 16px 64px 0 rgba(33,150,243,0.18), 0 2px 12px 0 rgba(66,165,245,0.10)',
-          border: '2.5px solid',
-          borderImage: 'linear-gradient(120deg, #1976d2 0%, #42a5f5 60%, #e3eafc 100%) 1',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          '::after': {
-            content: '""',
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            boxShadow: 'inset 0 2.5px 18px 0 rgba(33,150,243,0.11)',
-            borderRadius: 'inherit',
-            border: '2px solid transparent',
-            background: 'linear-gradient(120deg, rgba(66,165,245,0.10) 0%, rgba(25,118,210,0.08) 100%)',
-            zIndex: 1,
-            animation: 'borderGlow 3.5s ease-in-out infinite',
-            '@keyframes borderGlow': {
-              '0%,100%': { opacity: 0.8 },
-              '50%': { opacity: 1 },
-            },
-          },
-          animation: 'fadeIn 0.7s cubic-bezier(.4,0,.2,1)',
-          '@keyframes fadeIn': {
-            from: { opacity: 0, transform: 'translateY(24px)' },
-            to: { opacity: 1, transform: 'none' },
-          },
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-        }}>
-          <Box sx={{ width: '100%', display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', mb: 3, gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: 'linear-gradient(135deg, #1976d2 60%, #42a5f5 100%)', width: 56, height: 56, boxShadow: '0 0 0 4px #e3eafc', mr: 2 }}>
-                <HowToVoteIcon fontSize="large" />
-              </Avatar>
-              <Typography variant="h4" fontWeight={900} color="#1976d2" sx={{ letterSpacing: 1, textShadow: '0 2px 12px #e3eafc, 0 0 8px #42a5f5' }}>
-                Student Dashboard
-              </Typography>
-              <Tooltip title="How to vote?">
-                <IconButton sx={{ ml: 1, color: '#1976d2' }}>
-                  <InfoOutlinedIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-          <Divider sx={{ mb: 3, borderColor: 'rgba(33,150,243,0.13)' }} />
-          {message && <Alert severity={message.includes('error') ? 'error' : 'success'} sx={{ mb: 3, fontWeight: 600 }}>{message}</Alert>}
-          {positions.length === 0 && (
-            <Alert severity="info" sx={{ mb: 2 }}>No active positions available for voting at this time.</Alert>
-          )}
-          {positions.map((pos) => (
-            <Box key={pos.id} sx={{ mb: 5, borderRadius: 5, p: 3, background: 'linear-gradient(120deg, #f7fafd 80%, #e3eafc 100%)', boxShadow: '0 2px 12px 0 rgba(33,150,243,0.07)', border: '1.5px solid #e3eafc', transition: 'box-shadow 0.3s, transform 0.2s', '&:hover': { boxShadow: '0 4px 24px 0 rgba(33,150,243,0.13)', transform: 'scale(1.01)' } }}>
-              <Typography variant="h5" fontWeight={800} color="#1976d2" sx={{ mb: 1 }}>{pos.name}</Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>{pos.description}</Typography>
-              {votes[pos.id] ? (
-                <Alert severity="success" sx={{ fontWeight: 600, mb: 1 }}>
-                  You voted for: <b>{(candidates[pos.id].find(c => c.id === votes[pos.id]) || {}).full_name || 'Unknown'}</b>
-                </Alert>
-              ) : (
-                <>
-                  {candidates[pos.id].length === 0 && <Alert severity="info">No candidates for this position.</Alert>}
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
-                    {candidates[pos.id].map(cand => (
-                      <Paper key={cand.id} elevation={3} sx={{ display: 'flex', alignItems: 'center', p: 2, borderRadius: 4, minWidth: 260, flex: 1, boxShadow: '0 2px 8px 0 rgba(33,150,243,0.08)', background: 'rgba(255,255,255,0.96)', border: '1.5px solid #e3eafc', mb: 1, transition: 'box-shadow 0.2s, transform 0.2s', '&:hover': { boxShadow: '0 4px 16px 0 #42a5f5', transform: 'scale(1.03)' } }}>
-                        {cand.photo_url && <Avatar src={cand.photo_url} alt={cand.full_name} sx={{ width: 48, height: 48, mr: 2, boxShadow: '0 0 0 2px #42a5f5' }} />}
-                        <Box sx={{ flex: 1 }}>
-                          <Typography fontWeight={700} fontSize={17}>{cand.full_name}</Typography>
-                          <Typography fontSize={13} color="text.secondary">{cand.bio}</Typography>
-                        </Box>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          disabled={!!votes[pos.id]}
-                          onClick={() => handleVote(pos.id, cand.id)}
-                          sx={{ fontWeight: 700, borderRadius: 2, px: 2.5, py: 1, ml: 2, fontSize: 15, boxShadow: '0 2px 8px 0 #42a5f5', textTransform: 'uppercase', letterSpacing: 0.5, transition: 'box-shadow 0.2s, transform 0.2s', '&:hover': { boxShadow: '0 4px 16px 0 #1976d2', transform: 'scale(1.07)' } }}
-                        >
-                          Vote
-                        </Button>
-                      </Paper>
-                    ))}
-                  </Box>
-                </>
-              )}
-            </Box>
-          ))}
-        </Paper>
-      </Fade>
-    </Box>
+
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={2600}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        TransitionComponent={Fade}
+        sx={{ zIndex: 3000 }}
+      >
+        <Alert severity={snackbar.severity} variant="filled" sx={{ fontWeight: 600, fontSize: 16, px: 3 }}>
+          {snackbar.text}
+        </Alert>
+      </Snackbar>
+
+      {/* Micro-interactions: Keyframes for confetti pop */}
+      <style>{`
+        @keyframes confetti-pop {
+          0% { transform: scale(0.2) rotate(-30deg); opacity: 0; }
+          30% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+          60% { transform: scale(1) rotate(-8deg); opacity: 1; }
+          100% { transform: scale(0.2) rotate(30deg); opacity: 0; }
+        }
+      `}</style>
+    </React.Fragment>
   );
 };
 

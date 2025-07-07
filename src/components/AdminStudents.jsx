@@ -82,13 +82,27 @@ function AdminStudents() {
           phone: currentStudent.phone
         })
         .eq('id', currentStudent.id);
-      if (!error) setSnackbar({ open: true, message: 'Student updated.' });
+      if (error) {
+        setSnackbar({ open: true, message: `Update failed: ${error.message}` });
+        setLoading(false);
+        return;
+      } else {
+        setSnackbar({ open: true, message: 'Student updated.' });
+      }
     } else {
-      // Add
+      // Add (omit id field if present)
+      const studentToInsert = { ...currentStudent };
+      delete studentToInsert.id;
       const { error } = await supabase
         .from('students')
-        .insert([{ ...currentStudent }]);
-      if (!error) setSnackbar({ open: true, message: 'Student added.' });
+        .insert([studentToInsert]);
+      if (error) {
+        setSnackbar({ open: true, message: `Add failed: ${error.message}` });
+        setLoading(false);
+        return;
+      } else {
+        setSnackbar({ open: true, message: 'Student added.' });
+      }
     }
     handleCloseDialog();
     fetchStudents();
@@ -106,13 +120,32 @@ function AdminStudents() {
     setLoading(false);
   };
 
-  // CSV handlers (no-op for now)
+  // CSV handlers and sample export
   const handleCsvChange = (e) => {
     setCsvFile(e.target.files[0]);
   };
   const handleImportCsv = () => {
     // Implement CSV import logic here
     setSnackbar({ open: true, message: 'CSV import not implemented.' });
+  };
+
+  // Sample CSV download
+  const handleDownloadSampleCsv = () => {
+    const sample = [
+      ['matric_no', 'full_name', 'email', 'phone'],
+      ['ND/230001', 'Jane Doe', 'jane.doe@email.com', '+2348012345678'],
+      ['HND/230001', 'John Smith', 'john.smith@email.com', '+2348098765432']
+    ];
+    const csv = sample.map(row => row.map(field => `"${field}"`).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'students-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -155,6 +188,9 @@ function AdminStudents() {
           <input type="file" accept=".csv" hidden onChange={handleCsvChange} />
         </Button>
         <Button variant="outlined" onClick={handleImportCsv} disabled={!csvFile}>Upload</Button>
+        <Button variant="text" onClick={handleDownloadSampleCsv} sx={{ ml: 1 }}>
+          Download Sample CSV
+        </Button>
       </Box>
       <TableContainer component={Paper} sx={{ minHeight: 320 }}>
         <Table size="small">

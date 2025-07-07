@@ -5,6 +5,7 @@ import AdminStudents from './AdminStudents';
 import AdminCandidates from './AdminCandidates';
 import AdminEvents from './AdminEvents';
 import AdminPositions from './AdminPositions';
+import AdminResults from './AdminResults';
 
 export default function AdminDashboard() {
   const [selected, setSelected] = useState('home');
@@ -15,6 +16,7 @@ export default function AdminDashboard() {
   else if (selected === 'candidates') content = <AdminCandidates />;
   else if (selected === 'events') content = <AdminEvents />;
   else if (selected === 'positions') content = <AdminPositions />;
+  else if (selected === 'results') content = <AdminResults />;
   else if (selected === 'logout') {
     localStorage.removeItem('admin_session');
     window.location.href = '/admin-login';

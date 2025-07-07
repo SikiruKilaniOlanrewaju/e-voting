@@ -86,7 +86,7 @@ export default function AdminCandidates() {
         const { data: publicUrlData } = supabase.storage.from('candidate-photos').getPublicUrl(fileName);
         photo_url = publicUrlData?.publicUrl || '';
       } else {
-        setSnackbar({ open: true, message: 'Photo upload failed.' });
+        setSnackbar({ open: true, message: `Photo upload failed: ${uploadError?.message || ''}` });
         setLoading(false);
         return;
       }
@@ -102,13 +102,27 @@ export default function AdminCandidates() {
           photo_url
         })
         .eq('id', currentCandidate.id);
-      if (!error) setSnackbar({ open: true, message: 'Candidate updated.' });
+      if (error) {
+        setSnackbar({ open: true, message: `Update failed: ${error.message}` });
+        setLoading(false);
+        return;
+      } else {
+        setSnackbar({ open: true, message: 'Candidate updated.' });
+      }
     } else {
-      // Add
+      // Add (omit id field if present)
+      const candidateToInsert = { ...currentCandidate, photo_url };
+      delete candidateToInsert.id;
       const { error } = await supabase
         .from('candidates')
-        .insert([{ ...currentCandidate, photo_url }]);
-      if (!error) setSnackbar({ open: true, message: 'Candidate added.' });
+        .insert([candidateToInsert]);
+      if (error) {
+        setSnackbar({ open: true, message: `Add failed: ${error.message}` });
+        setLoading(false);
+        return;
+      } else {
+        setSnackbar({ open: true, message: 'Candidate added.' });
+      }
     }
     handleCloseDialog();
     fetchCandidates();

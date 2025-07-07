@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Candidates', icon: <AssignmentIndIcon />, key: 'candidates' },
   { label: 'Voting Events', icon: <HowToVoteIcon />, key: 'events' },
   { label: 'Positions', icon: <AssignmentIndIcon />, key: 'positions' },
+  { label: 'Results', icon: <HowToVoteIcon />, key: 'results' },
   { label: 'Logout', icon: <LogoutIcon />, key: 'logout' },
 ];
 
@@ -48,9 +49,11 @@ export default function AdminLayout({ selected, onSelect, children }) {
           </List>
         </Box>
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 1, sm: 3 }, ml: `${drawerWidth}px` }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 1, sm: 3 }, ml: { xs: 0, sm: 2 }, maxWidth: '100vw', width: '100%', boxSizing: 'border-box', transition: 'margin-left 0.2s' }}>
         <Toolbar />
-        {children}
+        <Box sx={{ maxWidth: 1100, mx: { xs: 1, sm: 2, md: 'auto' }, width: '100%' }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );

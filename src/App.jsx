@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
-import StudentDashboardEnhanced from './components/StudentDashboardEnhanced';
 import Login from './pages/Login';
 import StudentLogin from './pages/StudentLogin';
 import AdminLogin from './pages/AdminLogin';
@@ -18,7 +17,7 @@ function App() {
         <Route path="/login" element={<StudentLogin />} />
         <Route path="/student-login" element={<StudentLogin />} />
         {/* Student dashboard */}
-        <Route path="/student-dashboard" element={<StudentDashboardEnhanced />} />
+        <Route path="/student-dashboard" element={<StudentDashboard />} />
         {/* Admin routes */}
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin-login" element={<AdminLogin />} />

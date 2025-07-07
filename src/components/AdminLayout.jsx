@@ -1,10 +1,13 @@
-import React from 'react';
-import { Box, CssBaseline, Drawer, AppBar, Toolbar, Typography, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar, Tooltip as MuiTooltip, IconButton } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, CssBaseline, Drawer, AppBar, Toolbar, Typography, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar, Tooltip as MuiTooltip, IconButton, Menu, MenuItem, Switch, Snackbar } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import AccountCircle from '@mui/icons-material/AccountCircle';
 
 const drawerWidth = 220;
 
@@ -20,6 +23,46 @@ const navItems = [
 
 export default function AdminLayout({ selected, onSelect, children }) {
   const year = new Date().getFullYear();
+  // Theme switcher state
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('admin_theme') === 'dark');
+  // Profile menu state
+  const [anchorEl, setAnchorEl] = useState(null);
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({ open: false, text: '', severity: 'success' });
+
+  const handleThemeToggle = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem('admin_theme', newMode ? 'dark' : 'light');
+    setSnackbar({ open: true, text: `Switched to ${newMode ? 'Dark' : 'Light'} Mode`, severity: 'success' });
+    // Optionally: trigger theme context/provider here
+  };
+
+  const handleProfileMenu = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleProfileClose = () => {
+    setAnchorEl(null);
+  };
+  const handleLogout = () => {
+    setSnackbar({ open: true, text: 'Logged out (demo only)', severity: 'info' });
+    setAnchorEl(null);
+    // Add real logout logic here
+  };
+
+  // Help/FAQ modal state
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Keyboard shortcut: open help with ?
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.key === '?' || (e.shiftKey && e.key === '/')) && !anchorEl && !helpOpen) {
+        setHelpOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [anchorEl, helpOpen]);
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', background: 'background.default' }}>
       <CssBaseline />
@@ -65,8 +108,39 @@ export default function AdminLayout({ selected, onSelect, children }) {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <MuiTooltip title="Settings"><IconButton color="inherit"><SettingsIcon /></IconButton></MuiTooltip>
-            <Avatar sx={{ bgcolor: '#1976d2', width: 36, height: 36, fontWeight: 700 }}>AD</Avatar>
+            {/* Help/FAQ Button */}
+            <MuiTooltip title="Help / FAQ (Press ?)">
+              <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="12" fill="#42a5f5"/><text x="12" y="17" textAnchor="middle" fontSize="16" fill="#fff" fontWeight="bold">?</text></svg>
+              </IconButton>
+            </MuiTooltip>
+            {/* Theme Switcher */}
+            <MuiTooltip title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              <IconButton color="inherit" onClick={handleThemeToggle} sx={{ transition: 'color 0.3s' }}>
+                {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+              </IconButton>
+            </MuiTooltip>
+            {/* Profile Menu */}
+            <MuiTooltip title="Admin Profile">
+              <IconButton color="inherit" onClick={handleProfileMenu} sx={{ p: 0.5 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 36, height: 36, fontWeight: 700 }}>AD</Avatar>
+              </IconButton>
+            </MuiTooltip>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleProfileClose}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{ sx: { minWidth: 180, borderRadius: 2, boxShadow: 6, mt: 1 } }}
+            >
+              <MenuItem disabled>
+                <AccountCircle sx={{ mr: 1 }} /> Admin
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleProfileClose}><SettingsIcon sx={{ mr: 1 }} /> Profile Settings</MenuItem>
+              <MenuItem onClick={handleLogout}><LogoutIcon sx={{ mr: 1 }} /> Logout</MenuItem>
+            </Menu>
           </Box>
         </Toolbar>
       </AppBar>
@@ -264,6 +338,55 @@ export default function AdminLayout({ selected, onSelect, children }) {
           {children}
         </Box>
       </Box>
+    {/* Help/FAQ Modal */}
+    {helpOpen && (
+      <Box sx={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 2000,
+        background: 'rgba(33,150,243,0.13)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        animation: 'fadeIn 0.3s',
+      }} onClick={() => setHelpOpen(false)}>
+        <Box sx={{
+          bgcolor: '#fff', borderRadius: 4, boxShadow: 8, p: 4, minWidth: 340, maxWidth: 420,
+          border: '2px solid #42a5f5', position: 'relative',
+        }} onClick={e => e.stopPropagation()}>
+          <Typography variant="h6" fontWeight={800} color="#1976d2" sx={{ mb: 1 }}>Help & FAQ</Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            <b>Theme Switcher:</b> Click the sun/moon icon to toggle light/dark mode.<br/>
+            <b>Profile Menu:</b> Click your avatar for settings and logout.<br/>
+            <b>Navigation:</b> Use the sidebar to access admin features.<br/>
+            <b>Keyboard Shortcut:</b> Press <kbd>?</kbd> to open this help.<br/>
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            For more support, contact your system administrator.<br/>
+            <b>Tip:</b> Use <kbd>Tab</kbd> to navigate, <kbd>Esc</kbd> to close dialogs.
+          </Typography>
+          <IconButton onClick={() => setHelpOpen(false)} sx={{ position: 'absolute', top: 8, right: 8, color: '#1976d2' }}>
+            <svg width="20" height="20" viewBox="0 0 20 20"><line x1="4" y1="4" x2="16" y2="16" stroke="#1976d2" strokeWidth="2"/><line x1="16" y1="4" x2="4" y2="16" stroke="#1976d2" strokeWidth="2"/></svg>
+          </IconButton>
+        </Box>
+      </Box>
+    )}
+    {/* Global Snackbar */}
+    <Snackbar
+      open={snackbar.open}
+      autoHideDuration={2200}
+      onClose={() => setSnackbar({ ...snackbar, open: false })}
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      ContentProps={{
+        sx: {
+          background: snackbar.severity === 'success' ? 'linear-gradient(90deg, #42a5f5 60%, #1976d2 100%)' : snackbar.severity === 'error' ? '#e57373' : '#ffb300',
+          color: '#fff',
+          fontWeight: 700,
+          fontSize: 16,
+          borderRadius: 2,
+          boxShadow: 4,
+        }
+      }}
+      message={snackbar.text}
+    />
     </Box>
   );
 }

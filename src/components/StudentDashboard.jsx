@@ -31,6 +31,7 @@ const StudentDashboard = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, text: '', severity: 'success' });
   const [timer, setTimer] = useState('');
+  const [votingEvent, setVotingEvent] = useState(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('student_session');
@@ -50,11 +51,22 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      // 1. Get the latest unlocked voting event
+      const { data: events } = await supabase
+        .from('voting_events')
+        .select('id, name, locked')
+        .order('created_at', { ascending: false });
+      let activeEvent = null;
+      if (events && events.length > 0) {
+        activeEvent = events.find(ev => !ev.locked) || events[0];
+        setVotingEvent(activeEvent);
+      }
+      // 2. Fetch positions
       const { data: posData } = await supabase.from('positions').select('*').order('created_at', { ascending: false });
       setPositions(posData || []);
+      // 3. Fetch candidates for each position
       let candObj = {};
       for (const pos of posData || []) {
-        // Select and map actual DB fields to expected UI fields
         const { data: cands } = await supabase
           .from('candidates')
           .select('id,full_name,photo_url,bio')
@@ -67,8 +79,13 @@ const StudentDashboard = () => {
         }));
       }
       setCandidates(candObj);
-      if (student) {
-        const { data: voteData } = await supabase.from('votes').select('*').eq('student_id', student.id);
+      // 4. Fetch votes for this student and this event
+      if (student && activeEvent) {
+        const { data: voteData } = await supabase
+          .from('votes')
+          .select('*')
+          .eq('student_id', student.id)
+          .eq('voting_event_id', activeEvent.id);
         let voteObj = {};
         (voteData || []).forEach(v => { voteObj[v.position_id] = v.candidate_id; });
         setVotes(voteObj);
@@ -103,8 +120,20 @@ const StudentDashboard = () => {
       setSnackbar({ open: true, text: 'Not logged in.', severity: 'error' });
       return;
     }
+    if (!votingEvent) {
+      setSnackbar({ open: true, text: 'No active voting event.', severity: 'error' });
+      return;
+    }
     setMessage('');
-    if (votes[positionId]) {
+    // Double-check in DB for integrity
+    const { data: existingVote } = await supabase
+      .from('votes')
+      .select('id')
+      .eq('student_id', student.id)
+      .eq('position_id', positionId)
+      .eq('voting_event_id', votingEvent.id)
+      .maybeSingle();
+    if (existingVote) {
       setSnackbar({ open: true, text: 'You have already voted for this position.', severity: 'warning' });
       return;
     }
@@ -113,7 +142,7 @@ const StudentDashboard = () => {
         student_id: student.id,
         candidate_id: candidateId,
         position_id: positionId,
-        voting_event_id: null
+        voting_event_id: votingEvent.id
       }
     ]);
     if (error) {
@@ -211,6 +240,11 @@ const StudentDashboard = () => {
         overflowX: 'hidden',
         position: 'relative',
       }}>
+        {!votingEvent && (
+          <Alert severity="warning" sx={{ mb: 4, fontWeight: 600, fontSize: 18 }}>
+            No active voting event. Please contact the administrator or try again later.
+          </Alert>
+        )}
         {/* Voting Progress Bar */}
         <Box sx={{ width: '100%', maxWidth: 520, mb: 3 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
@@ -298,18 +332,18 @@ const StudentDashboard = () => {
                             gap: 1.5,
                             position: 'relative',
                             transition: 'all 0.2s',
-                            cursor: voted ? 'not-allowed' : 'pointer',
+                            cursor: !votingEvent || voted ? 'not-allowed' : 'pointer',
                             outline: voted ? '2px solid #fbc02d' : 'none',
-                            '&:hover': !voted && {
+                            '&:hover': votingEvent && !voted && {
                               boxShadow: '0 4px 16px 0 rgba(66,165,245,0.12)',
                               background: 'linear-gradient(90deg, #e3eafc 60%, #f7fafd 100%)',
                             },
                           }}
                           tabIndex={0}
                           aria-label={`Candidate ${cand.name}`}
-                          onClick={() => !voted && handleVote(pos.id, cand.id)}
+                          onClick={() => votingEvent && !voted && handleVote(pos.id, cand.id)}
                           onKeyDown={e => {
-                            if (!voted && (e.key === 'Enter' || e.key === ' ')) handleVote(pos.id, cand.id);
+                            if (votingEvent && !voted && (e.key === 'Enter' || e.key === ' ')) handleVote(pos.id, cand.id);
                           }}
                         >
                           <Avatar
@@ -329,10 +363,10 @@ const StudentDashboard = () => {
                             variant={voted ? 'contained' : 'outlined'}
                             color={voted ? 'secondary' : 'primary'}
                             size="small"
-                            disabled={voted}
+                            disabled={!votingEvent || voted}
                             sx={{ mt: 1, fontWeight: 700, borderRadius: 2, boxShadow: voted ? '0 2px 8px 0 rgba(251,192,45,0.12)' : 'none', letterSpacing: 0.5 }}
                           >
-                            {voted ? 'Voted' : 'Vote'}
+                            {voted ? 'Voted' : !votingEvent ? 'Voting Disabled' : 'Vote'}
                           </Button>
                         </Paper>
                       );

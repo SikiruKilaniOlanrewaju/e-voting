@@ -51,6 +51,7 @@ function AdminStudents() {
     }
     setLoading(false);
   };
+  return (
     <Box>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
         <Typography variant="h5">Students</Typography>
@@ -58,11 +59,32 @@ function AdminStudents() {
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
         <TextField
-          label="Search"
+          label="Matric No."
           size="small"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          sx={{ minWidth: 220 }}
+          value={filter.matric_no}
+          onChange={e => { setFilter(f => ({ ...f, matric_no: e.target.value })); setPage(0); }}
+          sx={{ minWidth: 120 }}
+        />
+        <TextField
+          label="Full Name"
+          size="small"
+          value={filter.full_name}
+          onChange={e => { setFilter(f => ({ ...f, full_name: e.target.value })); setPage(0); }}
+          sx={{ minWidth: 120 }}
+        />
+        <TextField
+          label="Email"
+          size="small"
+          value={filter.email}
+          onChange={e => { setFilter(f => ({ ...f, email: e.target.value })); setPage(0); }}
+          sx={{ minWidth: 120 }}
+        />
+        <TextField
+          label="Phone"
+          size="small"
+          value={filter.phone}
+          onChange={e => { setFilter(f => ({ ...f, phone: e.target.value })); setPage(0); }}
+          sx={{ minWidth: 120 }}
         />
         <Button variant="contained" component="label" startIcon={<CloudUploadIcon />}>
           Import CSV
@@ -84,9 +106,9 @@ function AdminStudents() {
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={5} align="center">Loading...</TableCell></TableRow>
-            ) : paginated.length === 0 ? (
+            ) : students.length === 0 ? (
               <TableRow><TableCell colSpan={5} align="center">No students found.</TableCell></TableRow>
-            ) : paginated.map((row) => (
+            ) : students.map((row) => (
               <TableRow key={row.id} hover>
                 <TableCell>{row.matric_no}</TableCell>
                 <TableCell>{row.full_name}</TableCell>
@@ -119,8 +141,8 @@ function AdminStudents() {
           {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
         </TextField>
         <Button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Prev</Button>
-        <Typography variant="body2">{page + 1} / {Math.max(1, Math.ceil(filtered.length / rowsPerPage))}</Typography>
-        <Button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * rowsPerPage >= filtered.length}>Next</Button>
+        <Typography variant="body2">{page + 1} / {Math.max(1, Math.ceil(totalCount / rowsPerPage))}</Typography>
+        <Button onClick={() => setPage(p => p + 1)} disabled={(page + 1) * rowsPerPage >= totalCount}>Next</Button>
       </Box>
       {/* Add/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="xs" fullWidth>

@@ -66,11 +66,16 @@ const StudentLogin = () => {
     setInfo('');
     try {
       // Call Supabase Edge Function to verify OTP
+      // Use the new verify-student-otp Edge Function
+      const verifyUrl = 'https://pctuimohmylewnjkspcv.functions.supabase.co/verify-student-otp';
       const response = await fetch(
-        import.meta.env.VITE_EDGE_FUNCTION_URL + '/verify',
+        verifyUrl,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
           body: JSON.stringify({ email, matric_no: matricNo, otp })
         }
       );

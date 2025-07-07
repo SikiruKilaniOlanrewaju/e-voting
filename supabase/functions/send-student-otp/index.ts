@@ -124,8 +124,8 @@ Deno.serve(async (req) => {
     // Send OTP email using custom Node.js backend
     let emailSent = false;
     let emailError = null;
+    let smtpBackendUrl = Deno.env.get("SMTP_BACKEND_URL") || "http://localhost:3001/send-otp";
     try {
-      const smtpBackendUrl = Deno.env.get("SMTP_BACKEND_URL") || "http://localhost:3001/send-otp";
       const emailRes = await fetch(smtpBackendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,18 +148,8 @@ Deno.serve(async (req) => {
       emailSent: !!emailSent,
       emailError: emailError ?? null,
       smtpDebug: {
-        smtpHost,
-        smtpPort,
-        smtpUser,
-        smtpFrom,
+        smtpBackendUrl,
         email,
-        envSet: {
-          smtpHost: !!smtpHost,
-          smtpPort: !!smtpPort,
-          smtpUser: !!smtpUser,
-          smtpPass: !!smtpPass,
-          smtpFrom: !!smtpFrom,
-        }
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

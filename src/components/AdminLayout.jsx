@@ -105,33 +105,14 @@ export default function AdminLayout({ selected, onSelect, children }) {
       }}
     >
       <CssBaseline />
-      {/* AppBar Halo Glow */}
-      <Box sx={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: 90,
-        zIndex: 1200,
-        pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(66,165,245,0.18) 0%, rgba(66,165,245,0) 80%)',
-        filter: 'blur(12px)',
-        opacity: 0.8,
-        animation: 'haloPulse 5s ease-in-out infinite',
-        '@keyframes haloPulse': {
-          '0%,100%': { opacity: 0.8 },
-          '50%': { opacity: 1 },
-        },
-      }} />
+      {/* Lighter AppBar, no halo or blur */}
       <AppBar
         position="fixed"
         sx={{
           zIndex: 1201,
-          background: 'rgba(25, 118, 210, 0.92)',
-          boxShadow: '0 2px 12px 0 rgba(33,150,243,0.10)',
+          background: '#1976d2',
+          boxShadow: '0 1.5px 6px 0 rgba(33,150,243,0.07)',
           borderBottom: '1.5px solid #e3eafc',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
           transition: 'background 0.3s, box-shadow 0.3s',
         }}
       >
@@ -239,17 +220,13 @@ export default function AdminLayout({ selected, onSelect, children }) {
           [`& .MuiDrawer-paper`]: {
             width: drawerWidth,
             boxSizing: 'border-box',
-            background: 'rgba(38,50,56,0.97)',
-            color: '#fff',
+            background: '#f7fafd',
+            color: '#222',
             borderRight: '1px solid #e0e0e0',
             borderRadius: 0,
-            boxShadow: '0 2px 12px 0 rgba(33,150,243,0.10)',
+            boxShadow: 'none',
             transition: 'box-shadow 0.3s, background 0.3s',
             backgroundSize: '100% 200%',
-            '&:hover, &:focus-within': {
-              background: 'rgba(38,50,56,1)',
-              transition: 'background 0.3s',
-            },
           },
         }}
       >
@@ -258,18 +235,11 @@ export default function AdminLayout({ selected, onSelect, children }) {
           <List>
             {navItems.map((item) => (
               <ListItem
-                button
+                button={true}
                 key={item.key}
                 selected={selected === item.key}
-                onClick={e => {
+                onClick={() => {
                   if (isMobile) setMobileOpen(false);
-                  // Ripple effect
-                  const ripple = document.createElement('span');
-                  ripple.className = 'sidebar-ripple';
-                  ripple.style.left = `${e.nativeEvent.offsetX}px`;
-                  ripple.style.top = `${e.nativeEvent.offsetY}px`;
-                  e.currentTarget.appendChild(ripple);
-                  setTimeout(() => ripple.remove(), 600);
                   onSelect(item.key);
                 }}
                 component="div"
@@ -277,45 +247,18 @@ export default function AdminLayout({ selected, onSelect, children }) {
                   borderRadius: 1.5,
                   mb: 1,
                   mx: 1,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  transition: 'background 0.18s, box-shadow 0.18s, transform 0.18s',
                   minHeight: 44,
+                  background: selected === item.key ? '#e3eafc' : 'transparent',
+                  color: selected === item.key ? '#1976d2' : '#222',
+                  fontWeight: selected === item.key ? 800 : 500,
                   '&:hover': {
-                    background: 'rgba(66,165,245,0.13)',
-                    boxShadow: 1,
-                    transform: 'scale(1.01)'
+                    background: '#e3eafc',
+                    color: '#1976d2',
                   },
-                  ...(selected === item.key && {
-                    background: 'linear-gradient(90deg, #1976d2 60%, #42a5f5 100%)',
-                    color: '#fff',
-                    boxShadow: 2,
-                  })
+                  transition: 'background 0.18s, color 0.18s',
                 }}
               >
-                {/* Ripple effect style */}
-                <style>{`
-                  .sidebar-ripple {
-                    position: absolute;
-                    border-radius: 50%;
-                    transform: scale(0);
-                    animation: ripple 0.6s linear;
-                    background: rgba(66,165,245,0.25);
-                    pointer-events: none;
-                    width: 80px;
-                    height: 80px;
-                    left: 0;
-                    top: 0;
-                    z-index: 2;
-                  }
-                  @keyframes ripple {
-                    to {
-                      transform: scale(2.5);
-                      opacity: 0;
-                    }
-                  }
-                `}</style>
-                <ListItemIcon sx={{ color: '#fff', minWidth: 36 }}>{item.icon}</ListItemIcon>
+                <ListItemIcon sx={{ color: selected === item.key ? '#1976d2' : '#888', minWidth: 36 }}>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: selected === item.key ? 800 : 500, fontSize: 16 }} />
               </ListItem>
             ))}
@@ -337,123 +280,33 @@ export default function AdminLayout({ selected, onSelect, children }) {
           width: '100%',
           boxSizing: 'border-box',
           minHeight: 600,
-          background: 'linear-gradient(135deg, #f7fafd 60%, #e3eafc 100%)',
-          transition: 'background 0.3s, box-shadow 0.3s',
+          background: '#f7fafd',
           display: 'flex',
           flexDirection: 'column',
-          position: 'relative',
-          overflow: 'hidden',
           alignItems: 'center',
         }}
       >
-        {/* Animated gradient overlay for extra depth */}
-        <Box sx={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: 'none',
-          background: 'linear-gradient(120deg, rgba(66,165,245,0.08) 0%, rgba(25,118,210,0.06) 100%)',
-          animation: 'gradientMove 8s ease-in-out infinite',
-          backgroundSize: '200% 200%',
-          '@keyframes gradientMove': {
-            '0%': { backgroundPosition: '0% 50%' },
-            '50%': { backgroundPosition: '100% 50%' },
-            '100%': { backgroundPosition: '0% 50%' },
-          },
-        }} />
-        {/* Floating accent circle for extra depth */}
-        <Box sx={{
-          position: 'absolute',
-          right: { xs: -80, md: -120 },
-          top: { xs: 120, md: 180 },
-          width: { xs: 180, md: 260 },
-          height: { xs: 180, md: 260 },
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(66,165,245,0.13) 0%, rgba(66,165,245,0) 80%)',
-          filter: 'blur(8px)',
-          zIndex: 0,
-        }} />
         <Toolbar sx={{ zIndex: 1 }} />
-        {/* Fade transition for page content */}
-        <Fade in timeout={600} appear>
-          <Box
-            sx={{
-              flex: 1,
-              width: '100%',
-              maxWidth: 1200,
-              mx: 'auto',
-              my: { xs: 1, sm: 2 },
-              p: { xs: 1, sm: 3 },
-              borderRadius: 3,
-              boxShadow: { xs: 'none', sm: '0 4px 24px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(66,165,245,0.07)' },
-              background: 'rgba(255,255,255,0.98)',
-              minHeight: 500,
-              border: '1.5px solid #e3eafc',
-              boxSizing: 'border-box',
-              position: 'relative',
-              overflow: 'hidden',
-              '::after': {
-                content: '""',
-                position: 'absolute',
-                inset: 0,
-                pointerEvents: 'none',
-                boxShadow: 'inset 0 2.5px 18px 0 rgba(33,150,243,0.09)',
-                borderRadius: 'inherit',
-                border: '2px solid transparent',
-                background: 'linear-gradient(120deg, rgba(66,165,245,0.08) 0%, rgba(25,118,210,0.06) 100%)',
-                zIndex: 1,
-                animation: 'borderGlow 3.5s ease-in-out infinite',
-                '@keyframes borderGlow': {
-                  '0%,100%': { opacity: 0.7 },
-                  '50%': { opacity: 1 },
-                },
-              },
-              animation: 'fadeIn 0.7s cubic-bezier(.4,0,.2,1)',
-              '@keyframes fadeIn': {
-                from: { opacity: 0, transform: 'translateY(24px)' },
-                to: { opacity: 1, transform: 'none' },
-              },
-              zIndex: 1,
-              backdropFilter: 'blur(14px)',
-              WebkitBackdropFilter: 'blur(14px)',
-              // Micro-interaction: subtle hover effect for main card
-              transition: 'box-shadow 0.3s, transform 0.2s',
-              '&:hover': {
-                boxShadow: '0 16px 64px 0 rgba(33,150,243,0.18), 0 2px 12px 0 rgba(66,165,245,0.10)',
-                transform: 'scale(1.01)',
-              },
-            }}
-          >
-            {/* Micro-interaction: animated info bar */}
-            <Fade in timeout={900}>
-              <Box sx={{
-                position: 'absolute',
-                top: 0, left: 0, width: '100%',
-                bgcolor: 'linear-gradient(90deg, #42a5f5 0%, #1976d2 100%)',
-                color: '#fff',
-                py: 0.5, px: 2,
-                fontWeight: 700,
-                fontSize: 15,
-                letterSpacing: 0.5,
-                borderTopLeftRadius: 8,
-                borderTopRightRadius: 8,
-                boxShadow: '0 2px 12px 0 rgba(33,150,243,0.09)',
-                display: 'flex', alignItems: 'center', gap: 1.5,
-                zIndex: 2,
-                opacity: 0.97,
-                animation: 'slideDownInfo 1.2s cubic-bezier(.4,0,.2,1)',
-                '@keyframes slideDownInfo': {
-                  from: { transform: 'translateY(-32px)', opacity: 0 },
-                  to: { transform: 'none', opacity: 0.97 },
-                },
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="12" fill="#fff" fillOpacity="0.18"/><path d="M12 8v4m0 4h.01" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
-                Welcome to the premium admin dashboard! Enjoy live status, accessibility, and interactive UI.
-              </Box>
-            </Fade>
-            {children}
-          </Box>
-        </Fade>
+        <Box
+          sx={{
+            flex: 1,
+            width: '100%',
+            maxWidth: 1200,
+            mx: 'auto',
+            my: { xs: 1, sm: 2 },
+            p: { xs: 1, sm: 3 },
+            borderRadius: 2,
+            boxShadow: 'none',
+            background: '#fff',
+            minHeight: 500,
+            border: '1.5px solid #e3eafc',
+            boxSizing: 'border-box',
+            position: 'relative',
+            overflow: 'visible',
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     {/* Help/FAQ Modal */}
     {helpOpen && (

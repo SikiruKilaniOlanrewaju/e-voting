@@ -3,7 +3,10 @@ import React, { useEffect, useState } from 'react';
 // Animated counter for summary bar
 function useAnimatedNumber(target, duration = 600) {
   const [value, setValue] = React.useState(target);
+  const prevTarget = React.useRef(target);
+
   React.useEffect(() => {
+    if (prevTarget.current === target) return; // Only animate if value changed
     let raf;
     let start;
     const initial = value;
@@ -15,12 +18,15 @@ function useAnimatedNumber(target, duration = 600) {
       const progress = Math.min(elapsed / duration, 1);
       setValue(Math.round(initial + diff * progress));
       if (progress < 1) raf = requestAnimationFrame(animate);
-      else setValue(target);
+      else {
+        setValue(target);
+        prevTarget.current = target;
+      }
     }
     raf = requestAnimationFrame(animate);
     return () => raf && cancelAnimationFrame(raf);
     // eslint-disable-next-line
-  }, [target]);
+  }, [target, duration]);
   return value;
 }
 import { supabase } from '../supabaseClient';
@@ -308,7 +314,18 @@ const StudentDashboard = () => {
 
 
 
-  // Animated numbers for summary bar (must be before any return)
+
+  // Voting progress and turnout/abstention calculations (already declared above)
+
+
+  // Move summary calculations here so they are defined before useAnimatedNumber
+  const votedCount = Object.keys(votes).length;
+  const totalCount = positions.length;
+  const totalVotes = Object.values(votes).filter(Boolean).length;
+  const turnoutPercent = totalCount > 0 ? Math.round((votedCount / totalCount) * 100) : 0;
+  const abstentions = totalCount - votedCount;
+
+  // Animated numbers for summary bar (must be after calculations)
   const animatedVotes = useAnimatedNumber(totalVotes);
   const animatedTurnout = useAnimatedNumber(turnoutPercent);
   const animatedAbstentions = useAnimatedNumber(abstentions);
@@ -327,12 +344,7 @@ const StudentDashboard = () => {
     </Box>
   );
 
-  // Voting progress and turnout/abstention calculations
-  const votedCount = Object.keys(votes).length;
-  const totalCount = positions.length;
-  const totalVotes = Object.values(votes).filter(Boolean).length;
-  const turnoutPercent = totalCount > 0 ? Math.round((votedCount / totalCount) * 100) : 0;
-  const abstentions = totalCount - votedCount;
+  // (moved above)
 
   // Animated numbers for summary bar (move here, only declare once)
   // (declaration moved above)
@@ -510,7 +522,7 @@ const StudentDashboard = () => {
         </Box>
         <Divider />
         <List sx={{ p: 0 }}>
-          <ListItem button={true} onClick={handleLogout} sx={{ color: 'error.main', mt: 1, borderRadius: 1, mx: 1, mb: 1, '&:hover': { background: 'rgba(244,67,54,0.08)' } }}>
+          <ListItem button onClick={handleLogout} sx={{ color: 'error.main', mt: 1, borderRadius: 1, mx: 1, mb: 1, '&:hover': { background: 'rgba(244,67,54,0.08)' } }}>
             <ListItemIcon sx={{ color: 'error.main', minWidth: 36 }}><LogoutIcon sx={{ fontSize: 24, filter: 'drop-shadow(0 0 2px #f44336)' }} /></ListItemIcon>
             <ListItemText primary="Logout" />
           </ListItem>

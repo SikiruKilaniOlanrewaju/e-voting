@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useThemeMode } from '../ThemeModeContext';
 import { Fade, CircularProgress } from '@mui/material';
-import { Box, CssBaseline, Drawer, AppBar, Toolbar, Typography, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar, Tooltip as MuiTooltip, IconButton, Menu, MenuItem, Switch, Snackbar } from '@mui/material';
+import { Box, CssBaseline, Drawer, AppBar, Toolbar, Typography, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar, Tooltip as MuiTooltip, IconButton, Menu, MenuItem, Switch, Snackbar, useMediaQuery } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
@@ -9,6 +10,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import AccountCircle from '@mui/icons-material/AccountCircle';
+import MenuIcon from '@mui/icons-material/Menu';
+// import { useThemeMode } from '../ThemeModeContext';
 
 const drawerWidth = 220;
 
@@ -22,17 +25,11 @@ const navItems = [
   { label: 'Logout', icon: <LogoutIcon />, key: 'logout' },
 ];
 
-// Simulate a live system status (replace with real API/ping in production)
+
+// Production: Always online, or replace with real API/ping check if needed
 function useSystemStatus() {
-  const [status, setStatus] = useState('online');
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      // Randomly simulate status for demo; replace with real check
-      setStatus(Math.random() > 0.97 ? 'offline' : 'online');
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-  return status;
+  // Optionally, implement a real API ping here
+  return 'online';
 }
 
 export default function AdminLayout({ selected, onSelect, children }) {
@@ -40,18 +37,16 @@ export default function AdminLayout({ selected, onSelect, children }) {
   // Theme switcher state
   // System status
   const systemStatus = useSystemStatus();
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('admin_theme') === 'dark');
+  const { mode, setMode } = useThemeMode();
   // Profile menu state
   const [anchorEl, setAnchorEl] = useState(null);
   // Snackbar state
   const [snackbar, setSnackbar] = useState({ open: false, text: '', severity: 'success' });
 
   const handleThemeToggle = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem('admin_theme', newMode ? 'dark' : 'light');
-    setSnackbar({ open: true, text: `Switched to ${newMode ? 'Dark' : 'Light'} Mode`, severity: 'success' });
-    // Optionally: trigger theme context/provider here
+    const newMode = mode === 'dark' ? 'light' : 'dark';
+    setMode(newMode);
+    setSnackbar({ open: true, text: `Switched to ${newMode === 'dark' ? 'Dark' : 'Light'} Mode`, severity: 'success' });
   };
 
   const handleProfileMenu = (event) => {
@@ -61,9 +56,9 @@ export default function AdminLayout({ selected, onSelect, children }) {
     setAnchorEl(null);
   };
   const handleLogout = () => {
-    setSnackbar({ open: true, text: 'Logged out (demo only)', severity: 'info' });
     setAnchorEl(null);
-    // Add real logout logic here
+    localStorage.removeItem('admin_session');
+    window.location.href = '/admin-login';
   };
 
   // Help/FAQ modal state
@@ -92,6 +87,9 @@ export default function AdminLayout({ selected, onSelect, children }) {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [anchorEl, helpOpen, accessibility.highContrast]);
+
+  const isMobile = useMediaQuery('(max-width:900px)');
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <Box
@@ -129,25 +127,27 @@ export default function AdminLayout({ selected, onSelect, children }) {
         position="fixed"
         sx={{
           zIndex: 1201,
-          background: 'linear-gradient(90deg, #1976d2 70%, #42a5f5 100%)',
-          boxShadow: '0 4px 32px 0 rgba(33,150,243,0.18), 0 0 0 2px #42a5f5',
+          background: 'rgba(25, 118, 210, 0.92)',
+          boxShadow: '0 2px 12px 0 rgba(33,150,243,0.10)',
           borderBottom: '1.5px solid #e3eafc',
-          borderLeft: '1.5px solid #e3eafc',
-          animation: 'shimmer 4s linear infinite',
-          backgroundSize: '200% 100%',
-          '@keyframes shimmer': {
-            '0%': { backgroundPosition: '200% 0' },
-            '100%': { backgroundPosition: '-200% 0' },
-          },
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          transition: 'background 0.3s, box-shadow 0.3s',
         }}
       >
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <img src="/vite.svg" alt="Logo" style={{ height: 40, marginRight: 18 }} />
-            <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 800, letterSpacing: 1, color: '#fff' }}>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: { xs: 56, sm: 64 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            {isMobile && (
+              <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} sx={{ mr: 1 }} aria-label="Open navigation menu">
+                <MenuIcon />
+              </IconButton>
+            )}
+            <img src="/vite.svg" alt="Logo" style={{ height: 36, marginRight: 12 }} />
+            <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 800, letterSpacing: 1, color: '#fff', fontSize: { xs: 18, sm: 22 } }}>
               Online Voting Admin
             </Typography>
             {/* Live System Status Indicator */}
+            {!isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', ml: 3, gap: 1 }}>
               {/* Animated status pulse */}
               <Box sx={{
@@ -179,6 +179,7 @@ export default function AdminLayout({ selected, onSelect, children }) {
                 <Typography variant="caption" sx={{ color: '#e57373', fontWeight: 700, ml: 1 }}>Attempting reconnect...</Typography>
               </>}
             </Box>
+            )}
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {/* Accessibility Button */}
@@ -197,9 +198,9 @@ export default function AdminLayout({ selected, onSelect, children }) {
               </IconButton>
             </MuiTooltip>
             {/* Theme Switcher */}
-            <MuiTooltip title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+            <MuiTooltip title={mode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
               <IconButton color="inherit" onClick={handleThemeToggle} sx={{ transition: 'color 0.3s' }}>
-                {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+                {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
               </IconButton>
             </MuiTooltip>
             {/* Profile Menu */}
@@ -227,27 +228,27 @@ export default function AdminLayout({ selected, onSelect, children }) {
         </Toolbar>
       </AppBar>
       <Drawer
-        variant="permanent"
+        variant={isMobile ? 'temporary' : 'permanent'}
+        open={isMobile ? mobileOpen : true}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
         sx={{
           width: drawerWidth,
           flexShrink: 0,
-          boxShadow: '0 0 32px 0 rgba(33,150,243,0.13)',
+          display: { xs: isMobile ? 'block' : 'none', sm: 'block' },
           [`& .MuiDrawer-paper`]: {
             width: drawerWidth,
             boxSizing: 'border-box',
-            background: 'linear-gradient(180deg, #263238 80%, #1976d2 100%)',
+            background: 'rgba(38,50,56,0.97)',
             color: '#fff',
             borderRight: '1px solid #e0e0e0',
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 24,
-            boxShadow: '0 0 32px 0 rgba(33,150,243,0.13)',
-            transition: 'box-shadow 0.3s, border-radius 0.3s, background 0.5s',
+            borderRadius: 0,
+            boxShadow: '0 2px 12px 0 rgba(33,150,243,0.10)',
+            transition: 'box-shadow 0.3s, background 0.3s',
             backgroundSize: '100% 200%',
             '&:hover, &:focus-within': {
-              background: 'linear-gradient(180deg, #263238 60%, #42a5f5 100%)',
-              backgroundPosition: '0 100%',
-              backgroundSize: '100% 200%',
-              transition: 'background 0.5s',
+              background: 'rgba(38,50,56,1)',
+              transition: 'background 0.3s',
             },
           },
         }}
@@ -261,6 +262,7 @@ export default function AdminLayout({ selected, onSelect, children }) {
                 key={item.key}
                 selected={selected === item.key}
                 onClick={e => {
+                  if (isMobile) setMobileOpen(false);
                   // Ripple effect
                   const ripple = document.createElement('span');
                   ripple.className = 'sidebar-ripple';
@@ -270,28 +272,24 @@ export default function AdminLayout({ selected, onSelect, children }) {
                   setTimeout(() => ripple.remove(), 600);
                   onSelect(item.key);
                 }}
+                component="div"
                 sx={{
-                  borderRadius: 3,
+                  borderRadius: 1.5,
                   mb: 1,
                   mx: 1,
                   position: 'relative',
                   overflow: 'hidden',
-                  transition: 'background 0.2s, box-shadow 0.2s, transform 0.2s',
+                  transition: 'background 0.18s, box-shadow 0.18s, transform 0.18s',
+                  minHeight: 44,
                   '&:hover': {
-                    background: 'rgba(33, 150, 243, 0.18)',
-                    boxShadow: 3,
-                    transform: 'scale(1.03)'
+                    background: 'rgba(66,165,245,0.13)',
+                    boxShadow: 1,
+                    transform: 'scale(1.01)'
                   },
                   ...(selected === item.key && {
                     background: 'linear-gradient(90deg, #1976d2 60%, #42a5f5 100%)',
                     color: '#fff',
-                    boxShadow: 6,
-                    animation: 'pulse 1.6s infinite',
-                    '@keyframes pulse': {
-                      '0%': { boxShadow: '0 0 0 0 rgba(33,150,243,0.18)' },
-                      '70%': { boxShadow: '0 0 0 10px rgba(33,150,243,0)' },
-                      '100%': { boxShadow: '0 0 0 0 rgba(33,150,243,0.18)' },
-                    },
+                    boxShadow: 2,
                   })
                 }}
               >
@@ -345,6 +343,7 @@ export default function AdminLayout({ selected, onSelect, children }) {
           flexDirection: 'column',
           position: 'relative',
           overflow: 'hidden',
+          alignItems: 'center',
         }}
       >
         {/* Animated gradient overlay for extra depth */}
@@ -384,13 +383,12 @@ export default function AdminLayout({ selected, onSelect, children }) {
               maxWidth: 1200,
               mx: 'auto',
               my: { xs: 1, sm: 2 },
-              p: { xs: 1.5, sm: 4 },
-              borderRadius: 8,
-              boxShadow: { xs: 'none', sm: '0 12px 48px 0 rgba(33,150,243,0.13), 0 2px 8px 0 rgba(66,165,245,0.08)' },
-              background: 'rgba(255,255,255,0.94)',
+              p: { xs: 1, sm: 3 },
+              borderRadius: 3,
+              boxShadow: { xs: 'none', sm: '0 4px 24px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(66,165,245,0.07)' },
+              background: 'rgba(255,255,255,0.98)',
               minHeight: 500,
-              border: '2.5px solid',
-              borderImage: 'linear-gradient(120deg, #42a5f5 0%, #e3eafc 100%, #1976d2 100%) 1',
+              border: '1.5px solid #e3eafc',
               boxSizing: 'border-box',
               position: 'relative',
               overflow: 'hidden',

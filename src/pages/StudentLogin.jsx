@@ -96,8 +96,18 @@ const StudentLogin = () => {
       if (!response.ok) {
         setError(result.error || 'Invalid or expired OTP');
       } else {
-        // Optionally, you can now look up or create the student session in Supabase
-        localStorage.setItem('student_session', JSON.stringify({ matric_no: matricNo, email }));
+        // After OTP verification, fetch full student record (with id)
+        const { data: studentRecord, error: studentError } = await supabase
+          .from('students')
+          .select('id, full_name, matric_no, email')
+          .eq('email', email)
+          .single();
+        if (studentError || !studentRecord) {
+          setError('Could not fetch student record. Please contact admin.');
+          setLoading(false);
+          return;
+        }
+        localStorage.setItem('student_session', JSON.stringify(studentRecord));
         window.location.href = '/student-dashboard';
       }
     } catch (err) {

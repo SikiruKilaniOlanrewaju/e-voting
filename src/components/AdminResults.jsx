@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Select, MenuItem, FormControl, InputLabel, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button, TextField, Grid, Card, CardContent, Chip, Collapse, Modal, IconButton, Tooltip as MuiTooltip, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Typography, Select, MenuItem, FormControl, InputLabel, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button, TextField, Grid, Card, CardContent, Chip, Collapse, Modal, IconButton, Tooltip as MuiTooltip, ToggleButton, ToggleButtonGroup, Snackbar } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -9,7 +9,16 @@ import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import InfoIcon from '@mui/icons-material/Info';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+// Explicitly register the plugin for compatibility
+if (typeof window !== 'undefined' && jsPDF && autoTable) {
+  try {
+    autoTable(jsPDF);
+  } catch (e) {
+    // ignore if already registered
+  }
+}
+import Fade from '@mui/material/Fade';
 
 export default function AdminResults() {
   const [events, setEvents] = useState([]);
@@ -24,6 +33,7 @@ export default function AdminResults() {
   const [summary, setSummary] = useState({ totalVotes: 0, turnout: 0, abstentions: 0 });
   const [chartType, setChartType] = useState('bar');
   const [voterModal, setVoterModal] = useState({ open: false, candidate: null, voters: [] });
+  const [snackbar, setSnackbar] = useState({ open: false, text: '', severity: 'success' });
 
   useEffect(() => {
     // Fetch all voting events
@@ -41,7 +51,7 @@ export default function AdminResults() {
     setLoading(true);
     // Fetch results for the selected event
     supabase
-      .rpc('get_voting_results', { event_id: selectedEvent })
+      .rpc('get_voting_results', { voting_event_id: selectedEvent })
       .then(({ data, error }) => {
         if (error) {
           setResults([]);
@@ -53,10 +63,12 @@ export default function AdminResults() {
   }, [selectedEvent]);
 
   useEffect(() => {
+    // Defensive: ensure results is always an array
+    const safeResults = Array.isArray(results) ? results : [];
     setFilteredResults(
-      results.filter(r =>
-        r.position_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.candidate_name.toLowerCase().includes(search.toLowerCase())
+      safeResults.filter(r =>
+        (r.position_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (r.candidate_name || '').toLowerCase().includes(search.toLowerCase())
       )
     );
   }, [results, search]);
@@ -66,12 +78,12 @@ export default function AdminResults() {
     if (!selectedEvent) return;
     setLoading(true);
     const fetchResults = () => {
-      supabase.rpc('get_voting_results', { event_id: selectedEvent }).then(({ data, error }) => {
+      supabase.rpc('get_voting_results', { voting_event_id: selectedEvent }).then(({ data }) => {
         setResults(data || []);
         setLoading(false);
       });
-      supabase.from('voting_audit').select('*').eq('event_id', selectedEvent).order('timestamp', { ascending: false }).then(({ data }) => setAuditLog(data || []));
-      supabase.rpc('get_voting_summary', { event_id: selectedEvent }).then(({ data }) => setSummary(data || { totalVotes: 0, turnout: 0, abstentions: 0 }));
+      supabase.from('voting_audit').select('*').eq('voting_event_id', selectedEvent).order('timestamp', { ascending: false }).then(({ data }) => setAuditLog(data || []));
+      supabase.rpc('get_voting_summary', { voting_event_id: selectedEvent }).then(({ data }) => setSummary(data || { totalVotes: 0, turnout: 0, abstentions: 0 }));
       supabase.from('voting_events').select('locked').eq('id', selectedEvent).single().then(({ data }) => setLocked(data?.locked || false));
     };
     fetchResults();
@@ -104,14 +116,29 @@ export default function AdminResults() {
 
   // PDF Export
   const handleExportPDF = () => {
-    const doc = new jsPDF();
-    doc.text('Voting Results', 14, 16);
-    doc.autoTable({
-      head: [['Position', 'Candidate', 'Votes']],
-      body: filteredResults.map(r => [r.position_name, r.candidate_name, r.vote_count]),
-      startY: 22
-    });
-    doc.save('voting_results.pdf');
+    try {
+      if (!filteredResults || filteredResults.length === 0) {
+        setSnackbar({ open: true, text: 'No results to export.', severity: 'warning' });
+        return;
+      }
+      const doc = new jsPDF();
+      doc.text('Voting Results', 14, 16);
+      if (typeof doc.autoTable !== 'function') {
+        setSnackbar({ open: true, text: 'PDF export failed: autoTable not loaded.', severity: 'error' });
+        return;
+      }
+      doc.autoTable({
+        head: [['Position', 'Candidate', 'Votes']],
+        body: filteredResults.map(r => [r.position_name, r.candidate_name, r.vote_count]),
+        startY: 22
+      });
+      doc.save('voting_results.pdf');
+      setSnackbar({ open: true, text: 'PDF exported successfully!', severity: 'success' });
+    } catch (err) {
+      // Log error and show snackbar
+      console.error('PDF export error:', err);
+      setSnackbar({ open: true, text: 'PDF export failed. See console for details.', severity: 'error' });
+    }
   };
 
   // Lock results
@@ -121,10 +148,10 @@ export default function AdminResults() {
   };
 
   // Drilldown: show voters for candidate
-  const handleShowVoters = async (candidate) => {
-    const { data } = await supabase.from('votes').select('student:student_id(full_name,matric_no)').eq('candidate_id', candidate.candidate_id).eq('event_id', selectedEvent);
-    setVoterModal({ open: true, candidate, voters: data?.map(v => v.student) || [] });
-  };
+  // const handleShowVoters = async (candidate) => {
+  //   const { data } = await supabase.from('votes').select('student:student_id(full_name,matric_no)').eq('candidate_id', candidate.candidate_id).eq('voting_event_id', selectedEvent);
+  //   setVoterModal({ open: true, candidate, voters: data?.map(v => v.student) || [] });
+  // };
 
   // Group by position for charts
   const grouped = filteredResults.reduce((acc, row) => {
@@ -137,6 +164,21 @@ export default function AdminResults() {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', p: { xs: 1, sm: 3 } }}>
+      {/* Snackbar for PDF/CSV export feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={2600}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        TransitionComponent={Fade}
+        sx={{ zIndex: 3000 }}
+      >
+        <Paper elevation={6} sx={{ px: 3, py: 1.5, bgcolor: snackbar.severity === 'success' ? '#e3fcec' : snackbar.severity === 'warning' ? '#fffbe6' : '#ffebee' }}>
+          <Typography sx={{ fontWeight: 600, color: snackbar.severity === 'success' ? '#388e3c' : snackbar.severity === 'warning' ? '#b28704' : '#d32f2f' }}>
+            {snackbar.text}
+          </Typography>
+        </Paper>
+      </Snackbar>
       <Grid container spacing={2} mb={2}>
         <Grid item xs={12} md={8}>
           <Typography variant="h5" fontWeight={700}>Voting Results {locked && <Chip label="Certified" color="success" size="small" icon={<LockIcon />} sx={{ ml: 1 }} />}</Typography>
@@ -225,7 +267,7 @@ export default function AdminResults() {
             </Table>
           </TableContainer>
           {/* Charts per position */}
-          {Object.entries(grouped).map(([position, candidates], idx) => (
+          {Object.entries(grouped).map(([position, candidates]) => (
             <Box key={position} mb={5}>
               <Typography variant="h6" mb={1}>{position} - Vote Distribution</Typography>
               <ResponsiveContainer width="100%" height={220}>
